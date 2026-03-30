@@ -1,4 +1,5 @@
 import streamlit as st
+from datetime import date
 from pawpal_system import Owner, Pet, Task, Scheduler
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
@@ -33,7 +34,6 @@ if save_owner:
             name=owner_name, available_minutes_per_day=int(available_minutes)
         )
     else:
-        # Update existing owner without wiping pets
         st.session_state.owner.name = owner_name
         st.session_state.owner.available_minutes_per_day = int(available_minutes)
     st.success(f"Saved: {owner_name}, {available_minutes} min/day")
@@ -90,19 +90,27 @@ if pets:
     with st.form("add_task_form"):
         pet_names = [p.name for p in pets]
         selected_pet_name = st.selectbox("Assign to pet", pet_names)
+
         col1, col2 = st.columns(2)
         with col1:
             task_title = st.text_input("Task title", value="Morning walk")
             priority = st.selectbox("Priority", ["high", "medium", "low"])
+            frequency = st.selectbox("Frequency", ["daily", "weekly", "as-needed"])
         with col2:
             duration = st.number_input("Duration (min)", min_value=1, max_value=240, value=20)
-            frequency = st.selectbox("Frequency", ["daily", "weekly", "as-needed"])
+            set_time = st.checkbox("Set a specific start time")
+            start_time_input = st.time_input("Start time", value=None, disabled=not set_time)
+
         add_task = st.form_submit_button("Add Task")
 
     if add_task:
         if not task_title.strip():
             st.warning("Please enter a task title.")
         else:
+            start_time_str = None
+            if set_time and start_time_input is not None:
+                start_time_str = start_time_input.strftime("%H:%M")
+
             target_pet = next(p for p in owner.get_pets() if p.name == selected_pet_name)
             target_pet.add_task(
                 Task(
@@ -110,20 +118,38 @@ if pets:
                     duration_minutes=int(duration),
                     priority=priority,
                     frequency=frequency,
+                    start_time=start_time_str,
+                    due_date=date.today(),
                 )
             )
             st.success(f"Added '{task_title}' to {selected_pet_name}!")
 
-    # Show current tasks per pet
+    # --- Show tasks per pet with Mark Complete buttons ---
+    scheduler = Scheduler(owner)
     for pet in pets:
         if pet.get_tasks():
             st.markdown(f"**{pet.name}'s tasks**")
-            for task in pet.get_tasks():
-                status = "✅" if task.is_completed else "⬜"
-                st.write(
-                    f"  {status} {task.title} — {task.duration_minutes} min "
-                    f"[{task.priority}, {task.frequency}]"
-                )
+            for i, task in enumerate(pet.get_tasks()):
+                col_a, col_b = st.columns([5, 1])
+                with col_a:
+                    status = "✅" if task.is_completed else "⬜"
+                    time_str = f" @ {task.start_time}" if task.start_time else ""
+                    st.write(
+                        f"{status} {task.title}{time_str} — {task.duration_minutes} min "
+                        f"[{task.priority}, {task.frequency}]"
+                    )
+                with col_b:
+                    if not task.is_completed:
+                        if st.button("Done", key=f"done_{pet.name}_{i}"):
+                            next_task = scheduler.mark_task_complete(pet, task.title)
+                            if next_task:
+                                st.success(
+                                    f"'{task.title}' complete! "
+                                    f"Next occurrence added for {next_task.due_date}."
+                                )
+                            else:
+                                st.success(f"'{task.title}' marked complete.")
+                            st.rerun()
 
 # ---------------------------------------------------------------------------
 # Section 4: Generate schedule
@@ -139,6 +165,13 @@ elif not any(pet.get_pending_tasks() for pet in pets):
 else:
     if st.button("Generate Schedule", type="primary"):
         scheduler = Scheduler(owner)
+
+        # Conflict check first
+        all_conflicts = scheduler.detect_all_conflicts()
+        if all_conflicts:
+            for warning in all_conflicts:
+                st.warning(f"⚠ {warning}")
+
         full_schedule = scheduler.build_full_schedule()
         total_scheduled = sum(
             t.duration_minutes for tasks in full_schedule.values() for t in tasks
@@ -149,19 +182,23 @@ else:
         for pet in pets:
             scheduled = full_schedule.get(pet.name, [])
             if scheduled:
+                sorted_scheduled = scheduler.sort_by_time(scheduled)
                 st.markdown(f"**{pet.name}**")
-                for i, task in enumerate(scheduled, start=1):
+                for i, task in enumerate(sorted_scheduled, start=1):
+                    time_str = f" @ {task.start_time}" if task.start_time else ""
                     st.write(
-                        f"  {i}. {task.title} — {task.duration_minutes} min "
-                        f"[{task.priority} priority, {task.frequency}]"
+                        f"  {i}. {task.title}{time_str} — {task.duration_minutes} min "
+                        f"[{task.priority}, {task.frequency}]"
                     )
 
         st.divider()
-        remaining = owner.available_minutes_per_day - total_scheduled
-        st.metric("Total scheduled", f"{total_scheduled} min")
-        st.metric("Time remaining", f"{remaining} min")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total scheduled", f"{total_scheduled} min")
+        with col2:
+            st.metric("Time remaining", f"{owner.available_minutes_per_day - total_scheduled} min")
 
-        # Warn about anything that didn't fit
+        # Tasks that didn't make the cut
         skipped = [
             (pet.name, task.title)
             for pet in pets
@@ -169,7 +206,7 @@ else:
             if task not in full_schedule.get(pet.name, [])
         ]
         if skipped:
-            st.warning(
-                "These tasks didn't fit in today's budget: "
+            st.info(
+                "Didn't fit today: "
                 + ", ".join(f"{name}: {title}" for name, title in skipped)
             )

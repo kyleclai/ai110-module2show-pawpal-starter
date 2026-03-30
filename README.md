@@ -41,3 +41,41 @@ pip install -r requirements.txt
 5. Add tests to verify key behaviors.
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
+
+---
+
+## Smarter Scheduling
+
+Beyond basic priority-based scheduling, PawPal+ includes four algorithmic improvements:
+
+**Time-based sorting** — Tasks that have a `start_time` (HH:MM) set are sorted chronologically within the schedule. Tasks without a start time appear at the end.
+
+**Filtering** — `Scheduler.filter_tasks()` lets you query tasks across all pets by pet name, completion status, or both.
+
+**Recurring tasks** — When a `daily` or `weekly` task is marked complete via `Scheduler.mark_task_complete()`, a new copy is automatically created with a due date shifted by 1 day or 7 days respectively. `as-needed` tasks do not recur.
+
+**Conflict detection** — `Scheduler.detect_conflicts()` checks all timed tasks for a pet and returns a warning string for any pair whose time windows overlap (using interval overlap: `a_start < b_end and b_start < a_end`). `detect_all_conflicts()` runs this check across every pet at once.
+
+---
+
+## Testing PawPal+
+
+Run the automated test suite with:
+
+```bash
+python -m pytest
+```
+
+The suite covers 18 tests across five areas:
+
+| Area | What's tested |
+|---|---|
+| Task | `mark_complete()` flips status; completing one task doesn't affect others |
+| Pet | `add_task()` increases count; `get_pending_tasks()` excludes completed; `remove_task()` works |
+| Scheduling | Time budget is respected; budget is shared across pets; high priority beats low |
+| Sorting & filtering | Chronological ordering; untimed tasks placed last; filter by pet name and status |
+| Recurrence | Daily → +1 day; weekly → +7 days; as-needed → no new task |
+| Conflict detection | Overlapping windows flagged; sequential tasks clear; untimed tasks never conflict |
+
+**Confidence level: ★★★★☆**
+Core logic is well-covered. Edge cases not yet tested include tasks that span midnight, owners with zero available minutes, and duplicate pet names.

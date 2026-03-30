@@ -20,8 +20,15 @@ Relationships: an `Owner` has one or more `Pet`s; each `Pet` has zero or more `T
 
 **b. Design changes**
 
-- Did your design change during implementation?
-- If yes, describe at least one change and why you made it.
+Yes, my design changed after I reviewed the skeleton more carefully with AI assistance. A few things stood out.
+
+First, I had a `_PRIORITY_ORDER` dict sitting on the `Owner` class that was never actually used — the same thing already existed on `Scheduler` as `_PRIORITY_RANK`. I removed it from `Owner` because priority ordering is really a scheduling concern, not something the owner should know about. Keeping both would've been confusing.
+
+Second, I noticed that `Scheduler` was storing `available_minutes` as a snapshot copied from the owner at construction time. That means if someone updated the owner's time budget later, the scheduler would silently keep using the old number. I changed it to a `@property` that reads from the owner directly so it always stays in sync.
+
+Third, I updated my UML diagram. The label "uses" on the Scheduler→Owner relationship felt too vague — I changed it to "references" since the Scheduler holds onto the Owner and reads its data. I also added cardinality to those relationships, since I had it on Owner→Pet and Pet→Task but not on the Scheduler relationships, which was inconsistent.
+
+One thing I haven't fixed yet: if you call `build_schedule()` for multiple pets, each call gets the owner's full time budget independently. So an owner with two pets could end up with more tasks scheduled than they actually have time for. That's a real limitation I'd want to address in the next iteration.
 
 ---
 
@@ -34,8 +41,9 @@ Relationships: an `Owner` has one or more `Pet`s; each `Pet` has zero or more `T
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+The conflict detector only flags tasks whose time windows literally overlap — it doesn't try to reschedule them or pick one over the other. So if two tasks conflict, the scheduler will still include both in the schedule and just show a warning instead of crashing or dropping the lower-priority one.
+
+I think that's the right call for this app. The owner knows their day better than the algorithm does — maybe they planned for someone else to handle one of those tasks, or maybe one of the times is approximate. Surfacing the conflict and letting the owner decide is more useful than silently dropping a task they might actually need. The tradeoff is that the "schedule" could technically be unexecutable if conflicts are ignored, but a warning is a much safer failure mode than silent data loss.
 
 ---
 
