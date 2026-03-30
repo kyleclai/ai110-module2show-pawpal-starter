@@ -2,10 +2,21 @@
 
 ## 1. System Design
 
+**Three core user actions:**
+1. **Add a pet** — the owner registers a pet (name, species, age) so the app knows who needs care.
+2. **Add/manage care tasks** — the owner creates tasks with a title, duration, and priority level (e.g., "Morning walk — 30 min — high").
+3. **Generate a daily schedule** — the system produces an ordered list of tasks that fits within the owner's available time, prioritizing high-importance tasks first.
+
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+The system is modeled with four classes:
+
+- **`Owner`** — holds the pet owner's name, how many minutes per day they have available, and any preferences. Responsible for managing the list of pets.
+- **`Pet`** — holds basic pet info (name, species, age) and owns the list of care tasks. Responsible for adding tasks and filtering pending ones.
+- **`Task`** (dataclass) — a single care item with a title, duration in minutes, priority (`"low"`, `"medium"`, `"high"`), and a completion flag.
+- **`Scheduler`** — receives an `Owner` and builds a daily schedule for a given `Pet`. It sorts tasks by priority, fits as many as possible within the available time window, and generates a human-readable explanation.
+
+Relationships: an `Owner` has one or more `Pet`s; each `Pet` has zero or more `Task`s; the `Scheduler` references both `Owner` and `Pet` to produce the plan.
 
 **b. Design changes**
 
