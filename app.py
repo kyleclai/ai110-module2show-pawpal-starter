@@ -166,11 +166,17 @@ else:
     if st.button("Generate Schedule", type="primary"):
         scheduler = Scheduler(owner)
 
-        # Conflict check first
+        # --- Conflict check ---
         all_conflicts = scheduler.detect_all_conflicts()
         if all_conflicts:
+            st.error(
+                f"**{len(all_conflicts)} scheduling conflict(s) detected — review before starting your day:**"
+            )
             for warning in all_conflicts:
                 st.warning(f"⚠ {warning}")
+            st.caption(
+                "Tip: Adjust a task's start time or duration above to resolve overlaps."
+            )
 
         full_schedule = scheduler.build_full_schedule()
         total_scheduled = sum(
@@ -179,26 +185,40 @@ else:
 
         st.success("Here's your plan for today!")
 
+        # --- Schedule table per pet ---
+        import pandas as pd
+
         for pet in pets:
             scheduled = full_schedule.get(pet.name, [])
             if scheduled:
                 sorted_scheduled = scheduler.sort_by_time(scheduled)
                 st.markdown(f"**{pet.name}**")
-                for i, task in enumerate(sorted_scheduled, start=1):
-                    time_str = f" @ {task.start_time}" if task.start_time else ""
-                    st.write(
-                        f"  {i}. {task.title}{time_str} — {task.duration_minutes} min "
-                        f"[{task.priority}, {task.frequency}]"
-                    )
+                rows = [
+                    {
+                        "Order": i,
+                        "Task": task.title,
+                        "Start": task.start_time if task.start_time else "—",
+                        "Duration (min)": task.duration_minutes,
+                        "Priority": task.priority.capitalize(),
+                        "Frequency": task.frequency,
+                    }
+                    for i, task in enumerate(sorted_scheduled, start=1)
+                ]
+                st.table(pd.DataFrame(rows).set_index("Order"))
 
         st.divider()
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Total scheduled", f"{total_scheduled} min")
         with col2:
-            st.metric("Time remaining", f"{owner.available_minutes_per_day - total_scheduled} min")
+            remaining = owner.available_minutes_per_day - total_scheduled
+            st.metric(
+                "Time remaining",
+                f"{remaining} min",
+                delta=None if remaining >= 0 else "Over budget",
+            )
 
-        # Tasks that didn't make the cut
+        # --- Tasks that didn't make the cut ---
         skipped = [
             (pet.name, task.title)
             for pet in pets

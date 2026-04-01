@@ -1,6 +1,6 @@
 # PawPal+ (Module 2 Project)
 
-You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
+**PawPal+** is a Streamlit app that helps a pet owner plan daily care tasks across multiple pets using smart, priority-driven scheduling.
 
 ## Scenario
 
@@ -10,7 +10,26 @@ A busy pet owner needs help staying consistent with pet care. They want an assis
 - Consider constraints (time available, priority, owner preferences)
 - Produce a daily plan and explain why it chose that plan
 
-Your job is to design the system first (UML), then implement the logic in Python, then connect it to the Streamlit UI.
+---
+
+## Features
+
+- **Owner & pet registration** — create an owner profile with a daily time budget, then register one or more pets (name, species, age).
+- **Task management** — add care tasks with a title, duration, priority (`high` / `medium` / `low`), frequency, and an optional specific start time.
+- **Priority-based greedy scheduling** — `Scheduler.build_full_schedule()` collects all pending tasks across every pet, sorts them by priority then shortest-duration tiebreaker, and greedily assigns them until the owner's time budget is exhausted. High-priority tasks are always considered first.
+- **Time-based sorting** — `Scheduler.sort_by_time()` reorders scheduled tasks chronologically by `start_time` (HH:MM). Tasks with no start time appear at the end, preserving their priority order.
+- **Conflict warnings** — `Scheduler.detect_conflicts()` checks all timed tasks for a pet and flags any pair whose time windows overlap using interval math (`a_start < b_end and b_start < a_end`). `detect_all_conflicts()` runs this across every pet at once. Conflicts appear as prominent warnings in the UI before the schedule is shown.
+- **Daily recurrence** — completing a `daily` task via `Scheduler.mark_task_complete()` automatically adds a fresh copy due the next day; `weekly` tasks get +7 days. `as-needed` tasks do not recur.
+- **Task filtering** — `Scheduler.filter_tasks()` supports querying tasks across all pets by pet name, completion status, or both.
+- **Professional schedule table** — the generated plan is displayed as a sortable `st.table` showing task order, start time, duration, priority, and frequency per pet.
+
+---
+
+## 📸 Demo
+
+<a href="/course_images/ai110/pawpal_screenshot.png" target="_blank"><img src='/course_images/ai110/pawpal_screenshot.png' title='PawPal App' width='' alt='PawPal App' class='center-block' /></a>
+
+---
 
 ## What you will build
 
@@ -58,9 +77,23 @@ Beyond basic priority-based scheduling, PawPal+ includes four algorithmic improv
 
 ---
 
-## Testing PawPal+
+## Running the Project
 
-Run the automated test suite with:
+### CLI demo
+
+```bash
+python main.py
+```
+
+This creates one owner, two pets (Mochi and Luna), six tasks, and runs through all five algorithmic features: priority scheduling, time-based sorting, filtering, recurring task completion, and conflict detection.
+
+### Streamlit UI
+
+```bash
+streamlit run app.py
+```
+
+### Automated tests
 
 ```bash
 python -m pytest

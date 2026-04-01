@@ -62,7 +62,85 @@ Mermaid diagram will be embedded in plan.md and reflection.md.
 
 ---
 
-## Mermaid UML Diagram
+---
+
+## Phase 4: Polish & Package
+
+- [x] **Step 1** — Enhance UI to surface smart logic visually
+  - [x] Conflict warnings promoted to `st.error` banner with per-warning `st.warning` rows
+  - [x] Scheduled tasks displayed as `st.table` with Start, Duration, Priority, Frequency columns
+  - [x] Time-remaining metric shown after schedule generation
+  - [x] Conflict resolution tip caption added under warnings
+- [x] **Step 2** — Finalize UML to match final implementation
+  - [x] Added `Task` fields: `frequency`, `start_time`, `due_date`; method: `next_occurrence()`
+  - [x] Added `Pet` method: `remove_task()`
+  - [x] Added `Owner` method: `get_all_tasks()`
+  - [x] Added `Scheduler` methods: `sort_by_time()`, `filter_tasks()`, `mark_task_complete()`, `detect_conflicts()`, `detect_all_conflicts()`, `build_full_schedule()`, `explain_full_plan()`
+- [x] **Step 3** — Polish README.md with Features list and Demo section
+- [x] **Step 4** — Complete reflection.md with AI strategy section
+
+---
+
+## Final UML Diagram (updated to match implementation)
+
+```mermaid
+classDiagram
+    class Owner {
+        +str name
+        +int available_minutes_per_day
+        +list~str~ preferences
+        +list~Pet~ pets
+        +add_pet(pet: Pet) None
+        +get_pets() list~Pet~
+        +get_all_tasks() list~tuple~
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +int age
+        +list~Task~ tasks
+        +add_task(task: Task) None
+        +remove_task(title: str) bool
+        +get_tasks() list~Task~
+        +get_pending_tasks() list~Task~
+    }
+
+    class Task {
+        +str title
+        +int duration_minutes
+        +str priority
+        +str frequency
+        +Optional~str~ start_time
+        +Optional~date~ due_date
+        +bool is_completed
+        +mark_complete() None
+        +next_occurrence() Optional~Task~
+    }
+
+    class Scheduler {
+        +Owner owner
+        +int available_minutes
+        +build_schedule(pet: Pet) list~Task~
+        +build_full_schedule() dict
+        +sort_by_time(tasks: list~Task~) list~Task~
+        +filter_tasks(pet_name, completed) list~Task~
+        +mark_task_complete(pet, title) Optional~Task~
+        +detect_conflicts(pet: Pet) list~str~
+        +detect_all_conflicts() list~str~
+        +explain_plan(schedule: list~Task~) str
+        +explain_full_plan(full_schedule: dict) str
+    }
+
+    Owner "1" --> "1..*" Pet : owns
+    Pet "1" --> "0..*" Task : has
+    Scheduler "1" --> "1" Owner : references
+    Scheduler "1" --> "0..*" Pet : schedules for
+```
+
+---
+
+## Original UML Diagram (Phase 1 draft)
 
 ```mermaid
 classDiagram
@@ -102,6 +180,6 @@ classDiagram
 
     Owner "1" --> "1..*" Pet : owns
     Pet "1" --> "0..*" Task : has
-    Scheduler --> Owner : uses
-    Scheduler --> Pet : schedules for
+    Scheduler "1" --> "1" Owner : references
+    Scheduler "1" --> "*" Pet : schedules for
 ```
